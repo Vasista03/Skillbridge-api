@@ -1,0 +1,9 @@
+Full name: <FILL IN: your full name>
+Email: nuvvulavasista@gmail.com
+Phone: <FILL IN: your phone number>
+GitHub profile: <FILL IN: https://github.com/your-username>
+
+Most challenging part of the build:
+Designing the dual-token Monitoring Officer flow so that a normal login JWT
+cannot be used at /monitoring/attendance, while still being required to obtain
+the short-lived scoped token in the first place.
