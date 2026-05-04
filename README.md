@@ -123,6 +123,15 @@ Replace `$BASE` with `http://localhost:8000` locally or your live URL.
 uvicorn src.main:app --reload
 ```
 
+### Setup
+
+**Seed the database (first deployment only)**
+```bash
+curl -X POST $BASE/seed
+```
+
+Returns the 5 test account credentials. Call this once after deploying to Render.
+
 ### Auth
 
 **Signup**
@@ -366,16 +375,30 @@ Target: Render (free web service).
 2. Create a new "Web Service" on Render, point at the repo.
 3. **Build command:** `pip install -r requirements.txt`
 4. **Start command:** `uvicorn src.main:app --host 0.0.0.0 --port $PORT`
-5. **Environment:** add `DATABASE_URL` (Neon Postgres URL),
-   `JWT_SECRET_KEY`, `MONITORING_API_KEY`. Leave the others to defaults.
-6. After first deploy, hit `/health` to confirm the service is up, then
-   open a Render shell and run `python -m scripts.seed` to populate.
+5. **Environment:** add these variables in the Render dashboard:
+   - `DATABASE_URL` — your Neon PostgreSQL connection string
+   - `JWT_SECRET_KEY` — a random string (generate with `python -c "import secrets; print(secrets.token_urlsafe(64))"`)
+   - `MONITORING_API_KEY` — a random string (generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`)
+   - Leave the rest to defaults.
+6. **After first deploy**, the service boots and tables auto-create. Seed the database via:
+   ```bash
+   curl -X POST https://your-service-name.onrender.com/seed
+   ```
+   (Render's free tier doesn't include shell access, so use the `/seed` HTTP endpoint instead.)
+7. Verify it worked:
+   ```bash
+   curl https://your-service-name.onrender.com/health
+   ```
+8. Test a login:
+   ```bash
+   curl -X POST https://your-service-name.onrender.com/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"student@example.com","password":"password123"}'
+   ```
 
-> **If deployment failed:** This README will be updated with the actual
-> failure mode and what was attempted. As of this commit the project
-> has been deployment-validated locally (uvicorn boots, `/health`
-> returns 200, all 24 tests pass), but a hosted URL has not yet been
-> wired up. Update section 1 with the real URL once it's live.
+> **Deployment status:** The project has been tested locally (uvicorn boots,
+> `/health` returns 200, all 24 pytest tests pass, `/seed` endpoint works).
+> Update section 1 with the live Render URL once deployed.
 
 ---
 
