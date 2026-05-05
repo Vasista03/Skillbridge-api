@@ -227,6 +227,325 @@ curl -X POST $BASE/monitoring/attendance -H "Authorization: Bearer $MONITOR_SCOP
 
 ---
 
+## 8.5. Complete API Testing with Postman
+
+**Postman is the easiest way to test all endpoints and demonstrate the full application flow.**
+
+### Setup Postman Environment
+
+1. Open Postman
+2. Create a new **Environment** called `SkillBridge`
+3. Add these variables:
+
+| Variable | Initial Value | Description |
+|---|---|---|
+| `BASE_URL` | `https://skillbridge-api-jevk.onrender.com` | API base URL |
+| `STUDENT_TOKEN` | (empty) | JWT for student (set after login) |
+| `TRAINER_TOKEN` | (empty) | JWT for trainer (set after login) |
+| `INSTITUTION_TOKEN` | (empty) | JWT for institution (set after login) |
+| `MANAGER_TOKEN` | (empty) | JWT for programme manager (set after login) |
+| `MONITOR_TOKEN` | (empty) | JWT for monitoring officer (set after login) |
+| `MONITOR_SCOPED_TOKEN` | (empty) | Scoped monitoring token (set after calling /auth/monitoring-token) |
+| `INSTITUTION_ID` | `1` | ID of the institution (from seeded data) |
+| `BATCH_ID` | (empty) | ID of batch (set after creating) |
+| `SESSION_ID` | (empty) | ID of session (set after creating) |
+| `INVITE_TOKEN` | (empty) | Invite token (set after generating) |
+
+### Test Sequence (In Order)
+
+Follow this workflow to test the complete application. Use `{{VARIABLE_NAME}}` in Postman to reference environment variables.
+
+---
+
+#### **1. Health Check**
+```
+GET {{BASE_URL}}/health
+```
+**Expected:** `{"status":"healthy"}`
+
+---
+
+#### **2. Auth: Login (Student)**
+```
+POST {{BASE_URL}}/auth/login
+Headers:
+  Content-Type: application/json
+Body:
+{
+  "email": "student@example.com",
+  "password": "password123"
+}
+```
+**Expected:** JWT token + user info
+**Action:** Copy `access_token` → In Postman, set `STUDENT_TOKEN` env var to this value
+
+---
+
+#### **3. Auth: Login (Trainer)**
+```
+POST {{BASE_URL}}/auth/login
+Body:
+{
+  "email": "trainer@example.com",
+  "password": "password123"
+}
+```
+**Expected:** JWT + trainer info
+**Action:** Set `TRAINER_TOKEN`
+
+---
+
+#### **4. Auth: Login (Institution)**
+```
+POST {{BASE_URL}}/auth/login
+Body:
+{
+  "email": "institution@example.com",
+  "password": "password123"
+}
+```
+**Expected:** JWT + institution user info
+**Action:** Set `INSTITUTION_TOKEN`
+
+---
+
+#### **5. Auth: Login (Programme Manager)**
+```
+POST {{BASE_URL}}/auth/login
+Body:
+{
+  "email": "manager@example.com",
+  "password": "password123"
+}
+```
+**Expected:** JWT + manager info
+**Action:** Set `MANAGER_TOKEN`
+
+---
+
+#### **6. Auth: Login (Monitoring Officer)**
+```
+POST {{BASE_URL}}/auth/login
+Body:
+{
+  "email": "monitoring@example.com",
+  "password": "password123"
+}
+```
+**Expected:** JWT + monitoring officer info
+**Action:** Set `MONITOR_TOKEN`
+
+---
+
+#### **7. Auth: Get Monitoring Scoped Token**
+```
+POST {{BASE_URL}}/auth/monitoring-token
+Headers:
+  Authorization: Bearer {{MONITOR_TOKEN}}
+  Content-Type: application/json
+Body:
+{
+  "key": "monitoring-secret-key"
+}
+```
+**Expected:** Short-lived scoped token with `scope: "monitoring:read"`
+**Action:** Set `MONITOR_SCOPED_TOKEN`
+
+---
+
+#### **8. Batches: Create Batch (Institution)**
+```
+POST {{BASE_URL}}/batches
+Headers:
+  Authorization: Bearer {{INSTITUTION_TOKEN}}
+  Content-Type: application/json
+Body:
+{
+  "name": "Postman Test Batch",
+  "institution_id": 1
+}
+```
+**Expected:** Batch created with ID
+**Action:** Set `BATCH_ID` to the returned batch ID
+
+---
+
+#### **9. Batches: Generate Invite (Trainer)**
+```
+POST {{BASE_URL}}/batches/{{BATCH_ID}}/invite
+Headers:
+  Authorization: Bearer {{TRAINER_TOKEN}}
+```
+**Expected:** Invite token + expiry
+**Action:** Set `INVITE_TOKEN` to the returned token
+
+---
+
+#### **10. Batches: Join Batch (Student)**
+```
+POST {{BASE_URL}}/batches/join
+Headers:
+  Authorization: Bearer {{STUDENT_TOKEN}}
+  Content-Type: application/json
+Body:
+{
+  "token": "{{INVITE_TOKEN}}"
+}
+```
+**Expected:** Student joined batch
+**Response:** `batch_id`, `batch_name`, `student_id`
+
+---
+
+#### **11. Sessions: Create Session (Trainer)**
+```
+POST {{BASE_URL}}/sessions
+Headers:
+  Authorization: Bearer {{TRAINER_TOKEN}}
+  Content-Type: application/json
+Body:
+{
+  "batch_id": {{BATCH_ID}},
+  "title": "Postman Test Session",
+  "date": "2026-05-10",
+  "start_time": "10:00",
+  "end_time": "11:00"
+}
+```
+**Expected:** Session created
+**Action:** Set `SESSION_ID` to the returned session ID
+
+---
+
+#### **12. Attendance: Mark Attendance (Student)**
+```
+POST {{BASE_URL}}/attendance/mark
+Headers:
+  Authorization: Bearer {{STUDENT_TOKEN}}
+  Content-Type: application/json
+Body:
+{
+  "session_id": {{SESSION_ID}},
+  "status": "present"
+}
+```
+**Expected:** Attendance marked
+**Response:** `session_id`, `student_id`, `status`, `marked_at`
+
+---
+
+#### **13. Reports: Session Attendance (Trainer)**
+```
+GET {{BASE_URL}}/sessions/{{SESSION_ID}}/attendance
+Headers:
+  Authorization: Bearer {{TRAINER_TOKEN}}
+```
+**Expected:** Full attendance list with all students in batch
+**Response:** `session_id`, `session_title`, `batch_id`, `attendance[]` array
+
+---
+
+#### **14. Reports: Batch Summary (Institution)**
+```
+GET {{BASE_URL}}/batches/{{BATCH_ID}}/summary
+Headers:
+  Authorization: Bearer {{INSTITUTION_TOKEN}}
+```
+**Expected:** Batch attendance summary (totals, percentages)
+**Response:** `total_students`, `total_sessions`, `present_count`, `absent_count`, `late_count`, `attendance_percentage`
+
+---
+
+#### **15. Reports: Institution Summary (Programme Manager)**
+```
+GET {{BASE_URL}}/institutions/1/summary
+Headers:
+  Authorization: Bearer {{MANAGER_TOKEN}}
+```
+**Expected:** Summary across all batches in institution
+**Response:** Institution-level aggregates + per-batch breakdown
+
+---
+
+#### **16. Reports: Programme Summary (Programme Manager)**
+```
+GET {{BASE_URL}}/programme/summary
+Headers:
+  Authorization: Bearer {{MANAGER_TOKEN}}
+```
+**Expected:** Programme-wide summary across all institutions
+**Response:** Global totals + per-institution breakdown
+
+---
+
+#### **17. Monitoring: Read Attendance (Monitoring Officer - Scoped Token)**
+```
+GET {{BASE_URL}}/monitoring/attendance
+Headers:
+  Authorization: Bearer {{MONITOR_SCOPED_TOKEN}}
+```
+**Expected:** All attendance records (read-only)
+**Response:** `total_records`, `records[]` with institution/batch/session/student/status details
+
+---
+
+#### **18. Monitoring: POST returns 405 (Method Not Allowed)**
+```
+POST {{BASE_URL}}/monitoring/attendance
+Headers:
+  Authorization: Bearer {{MONITOR_SCOPED_TOKEN}}
+```
+**Expected:** `405 Method Not Allowed`
+**Response:** `{"detail":"Method not allowed"}`
+
+---
+
+### Error Case Testing
+
+Test access control by trying requests with wrong tokens:
+
+**Test 403 Forbidden (Wrong Role):**
+```
+POST {{BASE_URL}}/batches
+Headers:
+  Authorization: Bearer {{STUDENT_TOKEN}}
+Body:
+{
+  "name": "Should fail",
+  "institution_id": 1
+}
+```
+**Expected:** `403 Forbidden` - "Not authorised for this action"
+
+**Test 401 Unauthorized (No Token):**
+```
+GET {{BASE_URL}}/programme/summary
+(No Authorization header)
+```
+**Expected:** `401 Unauthorized` - "Missing or invalid Authorization header"
+
+**Test 404 Not Found (Invalid Batch):**
+```
+GET {{BASE_URL}}/batches/9999/summary
+Headers:
+  Authorization: Bearer {{INSTITUTION_TOKEN}}
+```
+**Expected:** `404 Not Found` - "Batch not found"
+
+---
+
+### Postman Collection Export
+
+To save all these requests:
+1. Create a new **Collection** → Name it `SkillBridge API`
+2. Add all the above requests
+3. Right-click collection → **Export** → Save as JSON
+4. Share the JSON file with others
+
+Others can **Import** → **Choose file** → Import and test immediately.
+
+---
+
 ## 9. JWT payload structure (normal token)
 
 ```json
