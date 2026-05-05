@@ -8,10 +8,7 @@ and a separate scoped token for the Monitoring Officer role.
 
 ## 1. Live API base URL
 
-`<FILL IN AFTER DEPLOYMENT — see "Deployment notes" below>`
-
-If you are reviewing this before deployment is finished, run it locally
-following section 2.
+`https://skillbridge-api-jevk.onrender.com`
 
 ---
 
