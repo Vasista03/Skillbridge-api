@@ -43,7 +43,7 @@ app.include_router(monitoring.router)
 
 @app.get("/")
 def root():
-    return {"service": "SkillBridge Attendance Monitoring API", "status": "ok"}
+    return {"service": "SkillBridge Attendance Monitoring API", "version": "1.0.0", "status": "ok"}
 
 
 @app.get("/health")
